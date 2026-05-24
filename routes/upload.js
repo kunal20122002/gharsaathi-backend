@@ -1,22 +1,9 @@
 const router  = require('express').Router();
 const multer  = require('multer');
-const path    = require('path');
-const fs      = require('fs');
 const { authenticate } = require('../middleware/auth');
 
-// Use disk storage for Render/Railway free tier
-// Replace with Supabase Storage for production
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${req.user.id}-${Date.now()}${ext}`);
-  }
-});
+// Use memory storage — we send directly to Supabase
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -24,18 +11,47 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg','image/jpg','image/png','image/webp'];
     if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
+    else cb(new Error('Only JPEG, PNG and WebP allowed'));
   }
 });
 
 router.post('/', authenticate, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  // Return URL — in production point to Supabase Storage URL
-  const url = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
-  res.json({ url, filename: req.file.filename });
-});
 
-// Serve uploaded files
-router.use('/files', require('express').static(path.join(__dirname, '../uploads')));
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY
+    );
+
+    const ext      = req.file.mimetype.split('/')[1];
+    const filename = `${req.user.id}-${Date.now()}.${ext}`;
+    const bucket   = process.env.STORAGE_BUCKET || 'gharsaathi-uploads';
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Supabase upload error:', error);
+      return res.status(500).json({ error: 'Upload failed: ' + error.message });
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filename);
+
+    res.json({ url: urlData.publicUrl, filename });
+
+  } catch (e) {
+    console.error('Upload error:', e);
+    res.status(500).json({ error: 'Upload failed: ' + e.message });
+  }
+});
 
 module.exports = router;
