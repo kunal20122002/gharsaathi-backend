@@ -7,7 +7,7 @@ const { body, query, validationResult } = require('express-validator');
 router.get('/', optionalAuth, async (req, res) => {
   const { city, locality, min_rent, max_rent, flat_type, gender, page=1, limit=12 } = req.query;
   const offset = (page-1) * limit;
-  const params = []; const where = ["l.status='active'"];
+  const where = ["l.status='active'", "(l.is_seeded = false OR l.is_seeded IS NULL)"];
 
   if (city)      { params.push(`%${city.toLowerCase()}%`);     where.push(`LOWER(l.city) LIKE $${params.length}`); }
   if (locality)  { params.push(`%${locality.toLowerCase()}%`); where.push(`LOWER(l.locality) LIKE $${params.length}`); }
@@ -93,7 +93,7 @@ router.post('/',
           flat_type,rooms_available,existing_flatmates,monthly_rent,
           security_deposit,utility_charges,available_from,min_stay_months,
           vacancy_reason,house_rules,preferred_gender,preferred_occupation,
-          amenities,is_urgent,status
+          amenities,is_urgent,is_seeded,status
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,'active')
         RETURNING *
       `, [
