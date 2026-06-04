@@ -94,7 +94,7 @@ router.post('/',
           security_deposit,utility_charges,available_from,min_stay_months,
           vacancy_reason,house_rules,preferred_gender,preferred_occupation,
           amenities,is_urgent,is_seeded,status
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,'active')
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,false,'active')
         RETURNING *
       `, [
         req.user.id, title, description, city.toLowerCase(), locality.toLowerCase(),
