@@ -46,6 +46,7 @@ const io = new Server(server, {
   }
 });
 app.set('io', io);
+app.set('trust proxy', 1); // 
 
 // ── SECURITY & LOGGING ────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
