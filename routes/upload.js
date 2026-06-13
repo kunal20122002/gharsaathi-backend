@@ -16,7 +16,7 @@ const upload = multer({
 router.post('/', authenticate, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  const bucket = process.env.STORAGE_BUCKET;
+  const bucket = 'gharsaathi-uploads';
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
