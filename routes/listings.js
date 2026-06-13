@@ -24,7 +24,7 @@ router.get('/', optionalAuth, async (req, res) => {
       SELECT l.*,
         u.full_name AS lister_name, u.profile_pic_url, u.is_verified AS lister_verified,
         u.linkedin_url, u.trust_score,
-        (SELECT url FROM listing_photos WHERE listing_id = l.id AND is_primary = TRUE LIMIT 1) AS primary_photo,
+        (SELECT url FROM listing_photos WHERE listing_id = l.id ORDER BY is_primary DESC LIMIT 1) AS primary_photo,
         (SELECT note_text FROM flatmate_notes WHERE listing_id = l.id LIMIT 1) AS flatmate_note,
         (SELECT author_name FROM flatmate_notes WHERE listing_id = l.id LIMIT 1) AS note_author,
         (SELECT COUNT(*) FROM matches WHERE listing_id = l.id AND seeker_liked = TRUE) AS interest_count
