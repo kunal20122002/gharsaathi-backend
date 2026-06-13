@@ -6,38 +6,50 @@ const { body, query, validationResult } = require('express-validator');
 // ── GET ALL LISTINGS (with search/filter) ──────
 router.get('/', optionalAuth, async (req, res) => {
   const { city, locality, min_rent, max_rent, flat_type, gender, page=1, limit=12 } = req.query;
-  const offset = (page-1) * limit;
-  const where = ["l.status='active'", "(l.is_seeded = false OR l.is_seeded IS NULL)"];
-
+  const offset = (page - 1) * limit;
+  const where  = ["l.status = 'active'", "(l.is_seeded = false OR l.is_seeded IS NULL)"];
+  const params = []; // 
   if (city)      { params.push(`%${city.toLowerCase()}%`);     where.push(`LOWER(l.city) LIKE $${params.length}`); }
   if (locality)  { params.push(`%${locality.toLowerCase()}%`); where.push(`LOWER(l.locality) LIKE $${params.length}`); }
   if (min_rent)  { params.push(min_rent);  where.push(`l.monthly_rent >= $${params.length}`); }
   if (max_rent)  { params.push(max_rent);  where.push(`l.monthly_rent <= $${params.length}`); }
   if (flat_type) { params.push(flat_type); where.push(`l.flat_type = $${params.length}`); }
-  if (gender)    { params.push(gender);    where.push(`(l.preferred_gender = $${params.length} OR l.preferred_gender='any')`); }
+  if (gender)    { params.push(gender);    where.push(`(l.preferred_gender = $${params.length} OR l.preferred_gender = 'any')`); }
 
   const whereStr = where.join(' AND ');
-  params.push(limit, offset);
+  params.push(parseInt(limit), parseInt(offset));
 
   try {
     const { rows } = await pool.query(`
       SELECT l.*,
-        u.full_name as lister_name, u.profile_pic_url, u.is_verified as lister_verified,
+        u.full_name AS lister_name, u.profile_pic_url, u.is_verified AS lister_verified,
         u.linkedin_url, u.trust_score,
-        (SELECT url FROM listing_photos WHERE listing_id=l.id AND is_primary=TRUE LIMIT 1) as primary_photo,
-        (SELECT note_text FROM flatmate_notes WHERE listing_id=l.id LIMIT 1) as flatmate_note,
-        (SELECT author_name FROM flatmate_notes WHERE listing_id=l.id LIMIT 1) as note_author,
-        (SELECT COUNT(*) FROM matches WHERE listing_id=l.id AND seeker_liked=TRUE) as interest_count
+        (SELECT url FROM listing_photos WHERE listing_id = l.id AND is_primary = TRUE LIMIT 1) AS primary_photo,
+        (SELECT note_text FROM flatmate_notes WHERE listing_id = l.id LIMIT 1) AS flatmate_note,
+        (SELECT author_name FROM flatmate_notes WHERE listing_id = l.id LIMIT 1) AS note_author,
+        (SELECT COUNT(*) FROM matches WHERE listing_id = l.id AND seeker_liked = TRUE) AS interest_count
       FROM listings l
-      JOIN users u ON u.id=l.lister_id
+      JOIN users u ON u.id = l.lister_id
       WHERE ${whereStr}
       ORDER BY l.is_urgent DESC, l.created_at DESC
-      LIMIT $${params.length-1} OFFSET $${params.length}
+      LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    const count = await pool.query(`SELECT COUNT(*) FROM listings l WHERE ${whereStr}`, params.slice(0,-2));
-    res.json({ listings: rows, total: parseInt(count.rows[0].count), page: parseInt(page), limit: parseInt(limit) });
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Failed to fetch listings' }); }
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM listings l WHERE ${whereStr}`,
+      params.slice(0, -2)
+    );
+
+    res.json({
+      listings: rows,
+      total: parseInt(countResult.rows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch (e) {
+    console.error('GET /listings error:', e);
+    res.status(500).json({ error: 'Failed to fetch listings' });
+  }
 });
 
 // ── GET SINGLE LISTING ──────────────────────────
