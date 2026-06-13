@@ -36,7 +36,7 @@ router.post('/', authenticate, upload.single('file'), async (req, res) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const ext      = req.file.originalname.split('.').pop().toLowerCase();
-    const filename = `photos/${req.user.id}-${Date.now()}.${ext}`;
+    const filename = `${req.user.id}-${Date.now()}.${ext}`;
 
     console.log('Uploading to:', bucket, '/', filename);
 
