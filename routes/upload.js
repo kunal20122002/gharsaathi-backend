@@ -28,6 +28,8 @@ router.post('/', authenticate, upload.single('file'), async (req, res) => {
     const ext      = req.file.mimetype.split('/')[1];
     const filename = `${req.user.id}-${Date.now()}.${ext}`;
     const bucket   = process.env.STORAGE_BUCKET || 'gharsaathi-uploads';
+    
+    console.log('Uploading to bucket:', bucket, '| path:', filename);
 
     const { data, error } = await supabase.storage
       .from(bucket)
