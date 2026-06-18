@@ -1,6 +1,53 @@
 const router = require('express').Router();
 const pool   = require('../db/pool');
 const { authenticate } = require('../middleware/auth');
+// ── UPSERT SEEKER PROFILE ──────────────────────
+router.post('/seeker-profile', authenticate, async (req, res) => {
+  const {
+    looking_in_cities, looking_in_locality, max_budget,
+    looking_reason, stay_duration_min, lifestyle_tags,
+    reference_name, reference_phone
+  } = req.body;
+
+  if (!max_budget) return res.status(400).json({ error: 'Budget is required' });
+
+  try {
+    const { rows } = await pool.query(`
+      INSERT INTO seeker_profiles (
+        user_id, looking_in_cities, looking_in_locality, max_budget,
+        looking_reason, stay_duration_min, lifestyle_tags,
+        reference_name, reference_phone, is_active
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true)
+      ON CONFLICT (user_id) DO UPDATE SET
+        looking_in_cities   = EXCLUDED.looking_in_cities,
+        looking_in_locality = EXCLUDED.looking_in_locality,
+        max_budget          = EXCLUDED.max_budget,
+        looking_reason      = EXCLUDED.looking_reason,
+        stay_duration_min   = EXCLUDED.stay_duration_min,
+        lifestyle_tags      = EXCLUDED.lifestyle_tags,
+        reference_name      = EXCLUDED.reference_name,
+        reference_phone     = EXCLUDED.reference_phone,
+        is_active           = true,
+        updated_at          = NOW()
+      RETURNING *
+    `, [
+      req.user.id,
+      looking_in_cities || [],
+      looking_in_locality || null,
+      parseInt(max_budget),
+      looking_reason || null,
+      stay_duration_min || 3,
+      lifestyle_tags || [],
+      reference_name || null,
+      reference_phone || null
+    ]);
+
+    res.status(201).json({ message: 'Seeker profile saved!', profile: rows[0] });
+  } catch (e) {
+    console.error('Seeker profile error:', e);
+    res.status(500).json({ error: 'Failed to save profile' });
+  }
+});
 
 router.get('/me', authenticate, async (req, res) => {
   const { rows } = await pool.query('SELECT id,email,phone,full_name,gender,occupation,linkedin_url,bio,profile_pic_url,trust_score,is_verified,created_at FROM users WHERE id=$1', [req.user.id]);
